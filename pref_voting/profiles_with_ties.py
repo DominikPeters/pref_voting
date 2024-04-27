@@ -152,7 +152,7 @@ class ProfileWithTies(object):
     @property 
     def rankings_as_indifference_list(self): 
         """
-        Return a list of all individual rankings as indifference lists in the profile. 
+        Return a list of all individual rankings as indifference lists in the profile. An indifference list of a ranking is a tuple of tuples, where each tuple consists of candidates that are equally ranked.
         """
         
         return [r.to_indiff_list() for ridx,r in enumerate(self._rankings) 
