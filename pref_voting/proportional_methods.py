@@ -1088,8 +1088,15 @@ def stv_warren(profile, num_seats = 2, curr_cands=None, tol=1e-10, tie_break_key
         return [c for c, r in rmap.items() if c in accept and r == rmin]
 
     def nextset(ranking, accept, exclude):
+        """Find the next preference(s) after exclude in ranking, among candidates in accept."""
         rmap = ranking.rmap
-        pool = [(c, r) for c, r in rmap.items() if c != exclude and c in accept and r is not None]
+        exclude_rank = rmap.get(exclude)
+        if exclude_rank is None:
+            # If exclude is not ranked, fall back to finding top among accept
+            pool = [(c, r) for c, r in rmap.items() if c in accept and r is not None]
+        else:
+            # Find candidates ranked LOWER (higher rank number) than exclude
+            pool = [(c, r) for c, r in rmap.items() if c in accept and r is not None and r > exclude_rank]
         if not pool: return []
         rmin = min(r for _, r in pool)
         return [c for c, r in pool if r == rmin]
@@ -1193,8 +1200,22 @@ def stv_warren(profile, num_seats = 2, curr_cands=None, tol=1e-10, tie_break_key
             elif abs(t - min_t) <= EPS:
                 lowest.append(c)
         if len(lowest) > 1:
-            key = tie_break_key or (lambda x: str(x))
-            lowest.sort(key=key)
+            if tie_break_key is not None:
+                lowest.sort(key=tie_break_key)
+            else:
+                # Default tie-break: eliminate candidates ranked LOWER (higher rank) by voters.
+                # This ensures faithfulness on unanimous profiles.
+                def avg_rank(c):
+                    total_rank = 0.0
+                    total_weight = 0.0
+                    for i, ranking in enumerate(rankings):
+                        r = ranking.rmap.get(c)
+                        if r is not None:
+                            total_rank += r * float(rcounts[i])
+                            total_weight += float(rcounts[i])
+                    return total_rank / total_weight if total_weight > 0 else float('inf')
+                # Sort by avg_rank descending (higher rank = worse = eliminate first)
+                lowest.sort(key=lambda c: (-avg_rank(c), str(c)))
         elim = lowest[0]
         continuing.remove(elim)
 
