@@ -1021,15 +1021,23 @@ def stv_meek(profile, num_seats = 2, curr_cands=None, tol=1e-10, max_iter=2000, 
             if not changed:
                 break
 
-        # Eliminate the current lowest
+        # Eliminate the current lowest among non-elected candidates (those with keep = 1).
+        # Candidates with keep < 1 have had their surpluses transferred and should be protected.
         tallies = _meek_tally_from_profile(profile, keep, continuing)
+        non_elected = [c for c in continuing if abs(keep.get(c, 1.0) - 1.0) <= tol]
+        if not non_elected:
+            # All remaining candidates have reduced keep factors (are elected).
+            # This can happen if num_seats candidates have reached quota.
+            break
         min_t = float('inf'); lowest = []
-        for c in continuing:
+        for c in non_elected:
             t = tallies.get(c, 0.0)
             if t < min_t - EPS:
                 min_t = t; lowest = [c]
             elif abs(t - min_t) <= EPS:
                 lowest.append(c)
+        if not lowest:
+            break
         if len(lowest) > 1:
             key = tie_break_key or (lambda x: str(x))
             lowest.sort(key=key)
